@@ -3,6 +3,7 @@
 #include <EffekseerForDXLib.h>
 #include "../Utility/AsoUtility.h"
 #include "../Manager/GravityManager.h"
+#include "../Manager/InputManager.h"
 #include "../Object/Common/Transform.h"
 #include "Camera.h"
 
@@ -172,6 +173,32 @@ void Camera::SyncFollow(void)
 
 void Camera::ProcessRot(void)
 {
+
+	auto& ins = InputManager::GetInstance();
+
+	VECTOR axisDeg = AsoUtility::VECTOR_ZERO;
+	if (ins.IsNew(KEY_INPUT_UP)) { axisDeg.x += 1.0f; }
+	if (ins.IsNew(KEY_INPUT_DOWN)) { axisDeg.x += -1.0f; }
+	if (ins.IsNew(KEY_INPUT_LEFT)) { axisDeg.y += -1.0f; }
+	if (ins.IsNew(KEY_INPUT_RIGHT)) { axisDeg.y += 1.0f; }
+
+	if (ins.IsNew(KEY_INPUT_RIGHT))
+	{
+		angles_.y += AsoUtility::Deg2RadF(axisDeg.y);
+	}
+	if (ins.IsNew(KEY_INPUT_LEFT))
+	{
+		angles_.y += AsoUtility::Deg2RadF(axisDeg.y);
+	}
+	if (ins.IsNew(KEY_INPUT_UP) && AsoUtility::Rad2DegF(angles_.x) <= 40.0f)
+	{
+		angles_.x += AsoUtility::Deg2RadF(axisDeg.x);
+	}
+	if (ins.IsNew(KEY_INPUT_DOWN) && AsoUtility::Rad2DegF(angles_.x) >= -15.0f)
+	{
+		angles_.x += AsoUtility::Deg2RadF(axisDeg.x);
+	}
+
 }
 
 void Camera::SetBeforeDrawFixedPoint(void)

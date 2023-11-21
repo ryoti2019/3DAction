@@ -86,6 +86,8 @@ void Stage::ChangeStage(NAME type)
 	activePlanet_ = GetPlanet(activeName_);
 
 	// ステージの当たり判定をプレイヤーに設定
+	player_.ClearCollider();
+	player_.AddCollider(activePlanet_.lock()->GetTransform().collider);
 
 	// 重力制御に惑星を渡す
 	GravityManager::GetInstance().ChangeActivePlanet(activePlanet_);

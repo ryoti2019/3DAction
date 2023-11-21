@@ -30,6 +30,19 @@ void InputManager::Init(void)
 	InputManager::GetInstance().Add(KEY_INPUT_N);
 	InputManager::GetInstance().Add(KEY_INPUT_Z);
 
+	InputManager::GetInstance().Add(KEY_INPUT_UP);
+	InputManager::GetInstance().Add(KEY_INPUT_DOWN);
+	InputManager::GetInstance().Add(KEY_INPUT_RIGHT);
+	InputManager::GetInstance().Add(KEY_INPUT_LEFT);
+
+	InputManager::GetInstance().Add(KEY_INPUT_W);
+	InputManager::GetInstance().Add(KEY_INPUT_A);
+	InputManager::GetInstance().Add(KEY_INPUT_S);
+	InputManager::GetInstance().Add(KEY_INPUT_D);
+
+	InputManager::GetInstance().Add(KEY_INPUT_RSHIFT);
+	InputManager::GetInstance().Add(KEY_INPUT_BACKSLASH);
+
 
 
 	InputManager::MouseInfo info;
