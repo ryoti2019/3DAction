@@ -1,4 +1,5 @@
 #include <string>
+#include <EffekseerForDXLib.h>
 #include "../Application.h"
 #include "../Utility/AsoUtility.h"
 #include "../Manager/SceneManager.h"
@@ -32,6 +33,14 @@ Player::Player(void)
 	isJump_ = false;
 	imgShadow_ = -1;
 
+	reserveStartPos_ = AsoUtility::VECTOR_ZERO;
+	stepWarp_ = 0.0f;
+	timeWarp_ = 0.0f;
+	warpReservePos_ = AsoUtility::VECTOR_ZERO;
+
+	stateChanges_.emplace(
+		STATE::WARP_RESERVE, std::bind(&Player::ChangeStateWarpReserve, this));
+
 }
 
 Player::~Player(void)
@@ -57,6 +66,16 @@ void Player::Init(void)
 	// 丸影画像
 	imgShadow_ = resMng_.Load(
 		ResourceManager::SRC::PLAYER_SHADOW).handleId_;
+
+	// 足煙
+	effectSmokeResId_ = ResourceManager::GetInstance().Load(
+		ResourceManager::SRC::FOOT_SMOKE).handleId_;
+
+	// カプセルコライダ
+	capsule_ = std::make_unique<Capsule>(transform_);
+	capsule_->SetLocalPosTop({ 0.0f, 110.0f, 0.0f });
+	capsule_->SetLocalPosDown({ 0.0f, 30.0f, 0.0f });
+	capsule_->SetRadius(20.0f);
 
 	// 初期状態
 	ChangeState(STATE::PLAY);
@@ -100,6 +119,87 @@ void Player::ClearCollider(void)
 	colliders_.clear();
 }
 
+const Capsule& Player::GetCapsule(void) const
+{
+	return *capsule_;
+}
+
+void Player::StartWarpReserve(float time, const Quaternion& goalRot, const VECTOR& goalPos)
+{
+
+	// ワープ準備時間
+	timeWarp_ = time;
+
+	// ワープ準備経過時間
+	stepWarp_ = time;
+
+	// ワープ準備完了時の回転
+	warpQua_ = goalRot;
+
+	// ワープ準備完了時の座標
+	warpReservePos_ = goalPos;
+
+	ChangeState(STATE::WARP_RESERVE);
+
+}
+
+void Player::CollisionCapsule(void)
+{
+
+	// カプセルを移動させる
+	Transform trans = Transform(transform_);
+	trans.pos = movedPos_;
+	trans.Update();
+	Capsule cap = Capsule(*capsule_, trans);
+
+	// カプセルとの衝突判定
+	for (const auto c : colliders_)
+	{
+
+		auto hits = MV1CollCheck_Capsule(
+			c.lock()->modelId_, -1,
+			cap.GetPosTop(), cap.GetPosDown(), cap.GetRadius());
+
+		// 衝突した複数のポリゴンと衝突回避するまで、
+		// プレイヤーの位置を移動させる
+		for (int i = 0; i < hits.HitNum; i++)
+		{
+
+			auto hit = hits.Dim[i];
+
+			// 地面と異なり、衝突回避位置が不明なため、何度か移動させる
+			// この時、移動させる方向は、移動前座標に向いた方向であったり、
+			// 衝突したポリゴンの法線方向だったりする
+			for (int tryCnt = 0; tryCnt < 10; tryCnt++)
+			{
+
+				// 再度、モデル全体と衝突検出するには、効率が悪過ぎるので、
+				// 最初の衝突判定で検出した衝突ポリゴン1枚と衝突判定を取る
+				int pHit = HitCheck_Capsule_Triangle(
+					cap.GetPosTop(), cap.GetPosDown(), cap.GetRadius(),
+					hit.Position[0], hit.Position[1], hit.Position[2]);
+
+				if (pHit)
+				{
+
+					// 法線の方向にちょっとだけ移動させる
+					movedPos_ = VAdd(movedPos_, VScale(hit.Normal, 1.0f));
+					// カプセルも一緒に移動させる
+					trans.pos = movedPos_;
+					trans.Update();
+					continue;
+
+				}
+				break;
+			}
+		}
+
+		// 検出した地面ポリゴン情報の後始末
+		MV1CollResultPolyDimTerminate(hits);
+
+	}
+}
+
 void Player::InitAnimation(void)
 {
 
@@ -139,6 +239,20 @@ void Player::ChangeStatePlay(void)
 	stateUpdate_ = std::bind(&Player::UpdatePlay, this);
 }
 
+void Player::ChangeStateWarpReserve(void)
+{
+
+	stateUpdate_ = std::bind(&Player::UpdateWarpReserve, this);
+	jumpPow_ = AsoUtility::VECTOR_ZERO;
+
+	// ワープ準備開始時のプレイヤー情報
+	reserveStartQua_ = transform_.quaRot;
+	reserveStartPos_ = transform_.pos;
+
+	animationController_->Play((int)Player::ANIM_TYPE::WARP_PAUSE);
+
+}
+
 void Player::UpdateNone(void)
 {
 }
@@ -164,6 +278,23 @@ void Player::UpdatePlay(void)
 	// 重力方向に沿って回転させる
 	transform_.quaRot = grvMng_.GetTransform().quaRot;
 	transform_.quaRot = transform_.quaRot.Mult(playerRotY_);
+
+	// 歩きエフェクト
+	EffectFootSmoke();
+
+}
+
+void Player::UpdateWarpReserve(void)
+{
+
+	// 線形補間を行う
+	//AsoUtility::Lerp;
+
+	// 球面補間を行う
+	//Quaternion::Slerp();
+
+	// NPCの向きを変える
+	//transform_.quaRot = dirRot;
 
 }
 
@@ -191,6 +322,9 @@ void Player::DrawDebug(void)
 
 	// 衝突
 	DrawLine3D(gravHitPosUp_, gravHitPosDown_, 0x000000);
+
+	// カプセルコライダ
+	capsule_->Draw();
 
 }
 
@@ -308,11 +442,18 @@ void Player::Collision(void)
 	// 現在座標を起点に移動後座標を決める
 	movedPos_ = VAdd(transform_.pos, movePow_);
 
+	// 衝突(カプセル)
+	CollisionCapsule();
+
 	// 衝突(重力)
 	CollisionGravity();
 
 	// 移動
+	moveDiff_ = VSub(movedPos_, transform_.pos);
 	transform_.pos = movedPos_;
+
+	// 足元の煙
+	EffectFootSmoke();
 
 }
 
@@ -534,5 +675,28 @@ void Player::DrawShadow(void)
 
 	// Ｚバッファを無効にする
 	SetUseZBuffer3D(FALSE);
+
+}
+
+void Player::EffectFootSmoke(void)
+{
+
+	// エフェクト再生
+	effectSmokePlayId_ = PlayEffekseer3DEffect(effectSmokeResId_);
+
+	// 大きさ
+	float SCALE = 5.0f;
+
+	if (stepFootSmoke_ >= 0.0f)
+	{
+		stepFootSmoke_ -= SceneManager::GetInstance().GetDeltaTime();
+	}
+
+	if (!AsoUtility::EqualsVZero(moveDiff_) && stepFootSmoke_ <= 0.0f)
+	{
+		SetScalePlayingEffekseer3DEffect(effectSmokePlayId_, SCALE, SCALE, SCALE);
+		SetPosPlayingEffekseer3DEffect(effectSmokePlayId_, transform_.pos.x, transform_.pos.y, transform_.pos.z);
+		stepFootSmoke_ = TERM_FOOT_SMOKE;
+	}
 
 }

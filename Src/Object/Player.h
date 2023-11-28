@@ -6,6 +6,7 @@
 #include "ActorBase.h"
 class AnimationController;
 class Collider;
+class Capsule;
 
 class Player : public ActorBase
 {
@@ -26,6 +27,9 @@ public:
 
 	static constexpr float PLAYER_SHADOW_SIZE = 50.0f;		// 影の大きさ
 	static constexpr float PLAYER_SHADOW_HEIGHT = 100.0f;
+
+	// 煙エフェクト発生間隔
+	static constexpr float TERM_FOOT_SMOKE = 0.3f;
 
 	// 状態
 	enum class STATE
@@ -66,10 +70,19 @@ public:
 	void AddCollider(std::weak_ptr<Collider> collider);
 	void ClearCollider(void);
 
+	// 衝突用カプセルの取得
+	const Capsule& GetCapsule(void) const;
+
+	// ワープ準備開始
+	void StartWarpReserve(
+		float time, const Quaternion& goalRot, const VECTOR& goalPos);
+
 private:
 
 	// アニメーション
 	std::unique_ptr<AnimationController> animationController_;
+
+	std::unique_ptr<Capsule> capsule_;
 
 	// 状態管理
 	STATE state_;
@@ -116,16 +129,42 @@ private:
 	// 丸影
 	int imgShadow_;
 
+	// 足煙エフェクト
+	int effectSmokeResId_;
+	int effectSmokePlayId_;
+	float stepFootSmoke_;
+
+	// フレームごとの移動値
+	VECTOR moveDiff_;
+
+	// ワープ準備時間
+	float timeWarp_;
+
+	// ワープ準備経過時間
+	float stepWarp_;
+
+	// ワープ準備完了時の回転
+	Quaternion warpQua_;
+
+	// ワープ準備完了時の座標
+	VECTOR warpReservePos_;
+
+	// ワープ準備開始時のプレイヤー情報
+	Quaternion reserveStartQua_;
+	VECTOR reserveStartPos_;
+
 	void InitAnimation(void);
 
 	// 状態遷移
 	void ChangeState(STATE state);
 	void ChangeStateNone(void);
 	void ChangeStatePlay(void);
+	void ChangeStateWarpReserve(void);
 
 	// 更新ステップ
 	void UpdateNone(void);
 	void UpdatePlay(void);
+	void UpdateWarpReserve(void);
 
 	// 描画系
 	void DrawDebug(void);
@@ -140,6 +179,7 @@ private:
 	// 衝突判定
 	void Collision(void);
 	void CollisionGravity(void);
+	void CollisionCapsule(void);
 
 	// 移動量の計算
 	void CalcGravityPow(void);
@@ -150,5 +190,8 @@ private:
 	bool IsEndLanding(void);
 
 	void DrawShadow(void);
+
+	// 足煙エフェクト
+	void EffectFootSmoke(void);
 
 };

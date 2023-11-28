@@ -61,6 +61,18 @@ private:
 	// 状態管理(更新ステップ)
 	std::function<void(void)> stateUpdate_;
 
+	// エフェクト
+	int effectRotParticleResId_;
+	int effectRotParticlePlayId_;
+	VECTOR effectPos_;
+	float stepEffect_;
+
+	// ワープ(移動する)方向
+	Quaternion warpQua_;
+
+	// ワープ開始座標(ワールド座標)
+	VECTOR warpStartPos_;
+
 	// 状態遷移
 	void ChangeState(STATE state);
 	void ChangeStateIdle(void);
@@ -71,5 +83,14 @@ private:
 	void UpdateIdle(void);
 	void UpdateReserve(void);
 	void UpdateMove(void);
+
+	// 回転
+	void RotateZ(float speed);
+
+	// エフェクト再生
+	void PlayEffectRotParticle(void);
+
+	// 位置
+	void SyncParticleEffect(void);
 
 };
