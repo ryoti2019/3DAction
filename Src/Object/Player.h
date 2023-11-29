@@ -77,6 +77,10 @@ public:
 	void StartWarpReserve(
 		float time, const Quaternion& goalRot, const VECTOR& goalPos);
 
+	bool IsWarpMove(void)const;
+
+	bool IsPlay(void)const;
+
 private:
 
 	// アニメーション
@@ -160,11 +164,13 @@ private:
 	void ChangeStateNone(void);
 	void ChangeStatePlay(void);
 	void ChangeStateWarpReserve(void);
+	void ChangeStateWarpMove(void);
 
 	// 更新ステップ
 	void UpdateNone(void);
 	void UpdatePlay(void);
 	void UpdateWarpReserve(void);
+	void UpdateWarpMove(void);
 
 	// 描画系
 	void DrawDebug(void);

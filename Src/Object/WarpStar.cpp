@@ -125,10 +125,21 @@ void WarpStar::UpdateReserve(void)
 	// エフェクト
 	PlayEffectRotParticle();
 
+	if (player_.IsWarpMove())
+	{
+		ChangeState(STATE::MOVE);
+	}
+
 }
 
 void WarpStar::UpdateMove(void)
 {
+
+	if (player_.IsPlay())
+	{
+		ChangeState(STATE::IDLE);
+	}
+
 }
 
 void WarpStar::RotateZ(float speed)

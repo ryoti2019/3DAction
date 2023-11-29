@@ -26,10 +26,6 @@ Player::Player(void)
 	gravHitPosDown_ = AsoUtility::VECTOR_ZERO;
 	gravHitPosUp_ = AsoUtility::VECTOR_ZERO;
 
-	// 状態管理
-	stateChanges_.emplace(STATE::NONE, std::bind(&Player::ChangeStateNone, this));
-	stateChanges_.emplace(STATE::PLAY, std::bind(&Player::ChangeStatePlay, this));
-	
 	isJump_ = false;
 	imgShadow_ = -1;
 
@@ -38,8 +34,15 @@ Player::Player(void)
 	timeWarp_ = 0.0f;
 	warpReservePos_ = AsoUtility::VECTOR_ZERO;
 
+	// 状態管理
+	stateChanges_.emplace(STATE::NONE, std::bind(&Player::ChangeStateNone, this));
+	stateChanges_.emplace(STATE::PLAY, std::bind(&Player::ChangeStatePlay, this));
+
 	stateChanges_.emplace(
 		STATE::WARP_RESERVE, std::bind(&Player::ChangeStateWarpReserve, this));
+
+	stateChanges_.emplace(
+		STATE::WARP_MOVE, std::bind(&Player::ChangeStateWarpMove, this));
 
 }
 
@@ -253,6 +256,15 @@ void Player::ChangeStateWarpReserve(void)
 
 }
 
+void Player::ChangeStateWarpMove(void)
+{
+
+	stateUpdate_ = std::bind(&Player::UpdateWarpMove, this);
+
+	animationController_->Play((int)Player::ANIM_TYPE::FLY);
+
+}
+
 void Player::UpdateNone(void)
 {
 }
@@ -287,14 +299,40 @@ void Player::UpdatePlay(void)
 void Player::UpdateWarpReserve(void)
 {
 
-	// 線形補間を行う
-	//AsoUtility::Lerp;
+	stepWarp_ -= SceneManager::GetInstance().GetDeltaTime();
 
-	// 球面補間を行う
-	//Quaternion::Slerp();
+	if (stepWarp_ < 0.0f)
+	{
 
-	// NPCの向きを変える
-	//transform_.quaRot = dirRot;
+		// ワープ準備が完了(2秒経過)
+		transform_.quaRot = warpQua_;
+		transform_.pos = warpReservePos_;
+
+		ChangeState(STATE::WARP_MOVE);
+
+	}
+	else
+	{
+
+		// ワープ準備中で、回転と座標を補間
+		// 線形補間を行う
+		transform_.pos = AsoUtility::Lerp(reserveStartPos_, warpReservePos_, 1.0f - (stepWarp_ / timeWarp_));
+
+		// 球面補間を行う
+		transform_.quaRot = Quaternion::Slerp(reserveStartQua_, warpQua_, 1.0f - (stepWarp_ / timeWarp_));
+
+	}
+
+}
+
+void Player::UpdateWarpMove(void)
+{
+
+	// 移動処理→座標＋移動量
+	// 移動量　＝方向×スピード
+
+	transform_.pos = VAdd(transform_.pos, VScale(transform_.GetForward(), 20.0f));
+	transform_.Update();
 
 }
 
@@ -320,11 +358,16 @@ void Player::DrawDebug(void)
 	);
 	//-------------------------------------------------------
 
-	// 衝突
-	DrawLine3D(gravHitPosUp_, gravHitPosDown_, 0x000000);
+	//// 衝突
+	//DrawLine3D(gravHitPosUp_, gravHitPosDown_, 0x000000);
 
-	// カプセルコライダ
-	capsule_->Draw();
+	//// カプセルコライダ
+	//capsule_->Draw();
+
+	// アクティブな惑星
+	DrawFormatString(20, 80, black, "惑星　　　 ： %d",
+		(int)grvMng_.GetActivePlanet().lock()->GetName()
+	);
 
 }
 
@@ -587,6 +630,16 @@ bool Player::IsEndLanding(void)
 
 	return false;
 
+}
+
+bool Player::IsWarpMove(void)const
+{
+	return state_ == STATE::PLAY;
+}
+
+bool Player::IsPlay(void)const
+{
+	return state_ == STATE::WARP_MOVE;
 }
 
 void Player::DrawShadow(void)

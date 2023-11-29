@@ -52,10 +52,43 @@ void Stage::Update(void)
 		s->Update();
 	}
 
+	//// 惑星
+	//for (const auto& s : planets_)
+	//{
+	//	s.second->Update();
+	//}
+	
+	// 重力範囲が重なっていた場合、惑星がコロコロ切り替わらないように
+	// 一定時間ステージが変わらないようにする
+	bool isPossibleChange = true;
+	if (step_ > 0.0f)
+	{
+		step_ -= SceneManager::GetInstance().GetDeltaTime();
+		isPossibleChange = false;
+	}
+
 	// 惑星
 	for (const auto& s : planets_)
 	{
+
 		s.second->Update();
+
+		// 一定時間経過し、現在の惑星情報と異なる場合
+		if (isPossibleChange && activeName_ != s.second->GetName())
+		{
+			// 惑星の重力圏内に入ったら
+			if (s.second->InRangeGravity(player_.GetTransform().pos))
+			{
+
+				// 次のステージへ遷移
+				ChangeStage(s.second->GetName());
+
+				// 以降のループでステージが変わらないようにする
+				isPossibleChange = false;
+
+			}
+		}
+
 	}
 
 }
