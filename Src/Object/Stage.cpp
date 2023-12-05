@@ -88,7 +88,6 @@ void Stage::Update(void)
 
 			}
 		}
-
 	}
 
 }

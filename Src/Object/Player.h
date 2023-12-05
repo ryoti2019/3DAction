@@ -4,6 +4,8 @@
 #include <functional>
 #include <DxLib.h>
 #include "ActorBase.h"
+#include "Stage.h"
+
 class AnimationController;
 class Collider;
 class Capsule;
@@ -138,6 +140,13 @@ private:
 	int effectSmokePlayId_;
 	float stepFootSmoke_;
 
+	// 手のエフェクト
+	int effectHandLResId_;
+	int effectHandLPlayId_;
+	int effectHandRResId_;
+	int effectHandRPlayId_;
+	float stepHand_;
+
 	// フレームごとの移動値
 	VECTOR moveDiff_;
 
@@ -156,6 +165,24 @@ private:
 	// ワープ準備開始時のプレイヤー情報
 	Quaternion reserveStartQua_;
 	VECTOR reserveStartPos_;
+
+	// ワープ前の惑星名
+	Stage::NAME preWarpName_;
+
+	// 傾斜の方向
+	VECTOR slopeDir_;
+
+	// 傾斜移動を開始する傾斜角度(デグリー)
+	float slopeAngleDeg_;
+
+	// 傾斜移動時の移動量
+	VECTOR slopePow_;
+
+	// 足元衝突している地面のポリゴン量の法線
+	VECTOR hitNormal_;
+
+	// 足元衝突判定している地面ポリゴンの位置
+	VECTOR hitPos_;
 
 	void InitAnimation(void);
 
@@ -190,6 +217,9 @@ private:
 	// 移動量の計算
 	void CalcGravityPow(void);
 
+	// 傾斜の計算
+	void CalcSlope(void);
+
 	void ProcessJump(void);
 
 	// 着地モーション終了
@@ -199,5 +229,11 @@ private:
 
 	// 足煙エフェクト
 	void EffectFootSmoke(void);
+
+	// 手から出るエフェクト
+	void EffectHand(void);
+
+	void SyncHandEffect(void);
+
 
 };

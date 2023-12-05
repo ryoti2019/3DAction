@@ -34,6 +34,8 @@ Player::Player(void)
 	timeWarp_ = 0.0f;
 	warpReservePos_ = AsoUtility::VECTOR_ZERO;
 
+	preWarpName_ = Stage::NAME::MAIN_PLANET;
+
 	// 状態管理
 	stateChanges_.emplace(STATE::NONE, std::bind(&Player::ChangeStateNone, this));
 	stateChanges_.emplace(STATE::PLAY, std::bind(&Player::ChangeStatePlay, this));
@@ -73,6 +75,14 @@ void Player::Init(void)
 	// 足煙
 	effectSmokeResId_ = ResourceManager::GetInstance().Load(
 		ResourceManager::SRC::FOOT_SMOKE).handleId_;
+
+	// 左手のエフェクト
+	effectHandLResId_ = ResourceManager::GetInstance().Load(
+		ResourceManager::SRC::WARP_ORBIT).handleId_;
+
+	// 右手のエフェクト
+	effectHandRResId_ = ResourceManager::GetInstance().Load(
+		ResourceManager::SRC::WARP_ORBIT).handleId_;
 
 	// カプセルコライダ
 	capsule_ = std::make_unique<Capsule>(transform_);
@@ -141,6 +151,9 @@ void Player::StartWarpReserve(float time, const Quaternion& goalRot, const VECTO
 
 	// ワープ準備完了時の座標
 	warpReservePos_ = goalPos;
+
+	// ワープ前の惑星情報を保持
+	preWarpName_ = grvMng_.GetActivePlanet().lock()->GetName();
 
 	ChangeState(STATE::WARP_RESERVE);
 
@@ -263,6 +276,8 @@ void Player::ChangeStateWarpMove(void)
 
 	animationController_->Play((int)Player::ANIM_TYPE::FLY);
 
+	EffectHand();
+
 }
 
 void Player::UpdateNone(void)
@@ -280,6 +295,8 @@ void Player::UpdatePlay(void)
 
 	// ジャンプ処理
 	ProcessJump();
+
+	CalcSlope();
 
 	// 重力による移動量
 	CalcGravityPow();
@@ -333,6 +350,21 @@ void Player::UpdateWarpMove(void)
 
 	transform_.pos = VAdd(transform_.pos, VScale(transform_.GetForward(), 20.0f));
 	transform_.Update();
+	
+	SyncHandEffect();
+
+	// 次の惑星に切り替わったらワープ状態からプレイ状態へ切り替える
+	Stage::NAME name = grvMng_.GetActivePlanet().lock()->GetName();
+	if (name != preWarpName_)
+	{
+		// 落下アニメーション
+		animationController_->Play((int)ANIM_TYPE::JUMP, true, 13.0f, 25.0f);
+		animationController_->SetEndLoop(23.0f, 25.0f, 5.0f);
+		ChangeState(Player::STATE::PLAY);
+		StopEffekseer3DEffect(effectHandLPlayId_);
+		StopEffekseer3DEffect(effectHandRPlayId_);
+		return;
+	}
 
 }
 
@@ -495,9 +527,6 @@ void Player::Collision(void)
 	moveDiff_ = VSub(movedPos_, transform_.pos);
 	transform_.pos = movedPos_;
 
-	// 足元の煙
-	EffectFootSmoke();
-
 }
 
 void Player::CollisionGravity(void)
@@ -528,6 +557,11 @@ void Player::CollisionGravity(void)
 		//if (hit.HitFlag > 0)
 		if (hit.HitFlag > 0 && VDot(dirGravity, jumpPow_) > 0.9f)
 		{
+
+			// 傾斜計算用に衝突判定を保存しておく
+			hitNormal_ = hit.Normal;
+			hitPos_ = hit.HitPosition;
+
 			// 衝突地点から、少し上に移動
 			movedPos_ = VAdd(hit.HitPosition, VScale(dirUpGravity, 2.0f));
 			// ジャンプリセット
@@ -566,6 +600,45 @@ void Player::CalcGravityPow(void)
 	{
 		// 重力方向と反対方向(マイナス)でなければ、ジャンプ力を無くす
 		jumpPow_ = gravity;
+	}
+
+}
+
+void Player::CalcSlope(void)
+{
+
+	VECTOR gravityUp = grvMng_.GetDirUpGravity();
+
+	// 重力の反対方向から地面の法線方向に向けた回転量を取得
+	Quaternion up2GNorQua = Quaternion::FromToRotation(gravityUp, hitNormal_);
+
+	// 取得した回転の軸と角度を取得する
+	float angle = 0.0f;
+	float* anglePtr = &angle;
+	VECTOR axis;
+	up2GNorQua.ToAngleAxis(anglePtr, &axis);
+
+	// 90度足して、傾斜ベクトルへの回転を取得する
+	Quaternion slopeQ = Quaternion::AngleAxis(
+		angle + AsoUtility::Deg2RadD(90.0), axis);
+
+	// 地面の傾斜線(黄色)
+	slopeDir_ = slopeQ.PosAxis(gravityUp);
+
+	// 傾斜の角度
+	slopeAngleDeg_ = static_cast<float>(
+		AsoUtility::AngleDeg(gravityUp, slopeDir_));
+
+	// 傾斜による移動
+	if (AsoUtility::SqrMagnitude(jumpPow_) == 0.0f)
+	{
+		float CHECK_ANGLE = 120.0f;
+		if (slopeAngleDeg_ >= CHECK_ANGLE)
+		{
+			float diff = abs(slopeAngleDeg_ - CHECK_ANGLE);
+			slopePow_ = VScale(slopeDir_, diff / 3.0f);
+			movePow_ = VAdd(movePow_, slopePow_);
+		}
 	}
 
 }
@@ -745,11 +818,43 @@ void Player::EffectFootSmoke(void)
 		stepFootSmoke_ -= SceneManager::GetInstance().GetDeltaTime();
 	}
 
-	if (!AsoUtility::EqualsVZero(moveDiff_) && stepFootSmoke_ <= 0.0f)
+	if (!AsoUtility::EqualsVZero(moveDiff_) && stepFootSmoke_ <= 0.0f && !isJump_)
 	{
 		SetScalePlayingEffekseer3DEffect(effectSmokePlayId_, SCALE, SCALE, SCALE);
 		SetPosPlayingEffekseer3DEffect(effectSmokePlayId_, transform_.pos.x, transform_.pos.y, transform_.pos.z);
 		stepFootSmoke_ = TERM_FOOT_SMOKE;
 	}
+
+}
+
+void Player::EffectHand(void)
+{
+
+	// エフェクト再生
+	effectHandLPlayId_ = PlayEffekseer3DEffect(effectHandLResId_);
+	effectHandRPlayId_ = PlayEffekseer3DEffect(effectHandRResId_);
+
+}
+
+void Player::SyncHandEffect(void)
+{
+
+	// 座標
+	auto leftPos = MV1GetFramePosition(transform_.modelId, 11);
+	auto rightPos = MV1GetFramePosition(transform_.modelId, 35);
+
+	// 大きさ
+	float SCALE = 10.0f;
+
+	// 手から出るエフェクト
+	// 左手
+	SetScalePlayingEffekseer3DEffect(effectHandLPlayId_, SCALE, SCALE, SCALE);
+	SetPosPlayingEffekseer3DEffect(effectHandLPlayId_, leftPos.x, leftPos.y, leftPos.z);
+	SetRotationPlayingEffekseer3DEffect(effectHandLPlayId_, transform_.rot.x, transform_.rot.y, transform_.rot.z);
+
+	// 右手
+	SetScalePlayingEffekseer3DEffect(effectHandRPlayId_, SCALE, SCALE, SCALE);
+	SetPosPlayingEffekseer3DEffect(effectHandRPlayId_, rightPos.x, rightPos.y, rightPos.z);
+	SetRotationPlayingEffekseer3DEffect(effectHandRPlayId_, transform_.rot.x, transform_.rot.y, transform_.rot.z);
 
 }

@@ -106,6 +106,9 @@ protected:
 	// 回転力
 	float slerpPow_;
 
+	// 目的の角度
+	Quaternion goalRot_;
+
 	// デフォルトコンストラクタをprivateにして、
 	// 外部から生成できない様にする
 	GravityManager(void);

@@ -16,7 +16,7 @@ GravityManager::GravityManager(void)
 	dirUpGravity_ = AsoUtility::DIR_U;
 	lastHitNormal_ = AsoUtility::DIR_U;
 	lastHitPos_ = AsoUtility::VECTOR_ZERO;
-	slerpPow_ = 0.0f;
+	slerpPow_ = 0.001f;
 	step_ = 0.0f;
 
 	state_ = STATE::IDLE;
@@ -82,6 +82,28 @@ void GravityManager::Destroy(void)
 
 void GravityManager::Calculate(void)
 {
+
+	// 重力方向
+	dirGravity_ = CalcDirGravity();
+
+	// 重力の反対方向(ジャンプ方向)
+	dirUpGravity_ = VScale(dirGravity_, -1.0f);
+
+	// 現在の上方向(つまり、重力の反対方向)
+	VECTOR up = transform_.GetUp();
+
+	// ２つのベクトル間の回転量(差)を求める
+	Quaternion rot = Quaternion::FromToRotation(up, dirUpGravity_);
+
+	// 求めた回転量で、現在の重力制御を回転させる(差が埋まる)
+	//transform_.quaRot = rot.Mult(transform_.quaRot);
+
+	// 目的の角度
+	goalRot_ = rot;
+
+	// 徐々に回転
+	transform_.quaRot = Quaternion::Slerp(transform_.quaRot, goalRot_, static_cast<double>(slerpPow_));
+
 }
 
 std::weak_ptr<Planet> GravityManager::GetActivePlanet(void) const
@@ -179,6 +201,19 @@ VECTOR GravityManager::CalcDirGravity(void) const
 		ret = AsoUtility::DIR_D;
 		break;
 	case Planet::TYPE::SPHERE:
+	{
+
+		// プレイヤーの座標
+		auto playerPos = player_->GetTransform().pos;
+		// アクティブになっている惑星の座標(球体の中心座標)
+		auto planetPos = activePlanet_.lock()->GetTransform().pos;
+
+		// 重力方向を求める
+		auto gravityVec = VSub(planetPos, playerPos);
+		auto gravityDir = VNorm(gravityVec);
+		ret = gravityDir;
+
+	}
 		break;
 	case Planet::TYPE::TRANS_ROT:
 		break;
