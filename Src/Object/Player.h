@@ -83,6 +83,8 @@ public:
 
 	bool IsPlay(void)const;
 
+	VECTOR GetHitNormal(void);
+
 private:
 
 	// アニメーション
