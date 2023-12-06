@@ -1,6 +1,7 @@
 #include <DxLib.h>
 #include "../Utility/AsoUtility.h"
 #include "../Manager/SceneManager.h"
+#include "../Common/Quaternion.h"
 #include "../Object/Common/Transform.h"
 #include "../Object/Planet.h"
 #include "../Object/Player.h"
@@ -214,15 +215,26 @@ VECTOR GravityManager::CalcDirGravity(void) const
 		ret = gravityDir;
 
 	}
-		break;
+	break;
 	case Planet::TYPE::TRANS_ROT:
-		break;
+	{
+		// 重力方向を求める
+		ret = activePlanet_.lock()->GetTransform().GetDown();
+	}
+	break;
 	case Planet::TYPE::TRANS_CAMERA_FIXED:
 		break;
 	case Planet::TYPE::ROAD:
+	{
+		// プレイヤーの線ベクトル
+		auto hitNormal = player_->GetHitNormal();
+
+		// 重力方向を求める
+		ret = VScale(hitNormal,-1.0f);
 		break;
 	}
 
 	return ret;
 
+	}
 }

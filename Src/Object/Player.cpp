@@ -715,6 +715,11 @@ bool Player::IsPlay(void)const
 	return state_ == STATE::WARP_MOVE;
 }
 
+VECTOR Player::GetHitNormal(void)
+{
+	return hitNormal_;
+}
+
 void Player::DrawShadow(void)
 {
 
