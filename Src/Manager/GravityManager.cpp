@@ -230,11 +230,9 @@ VECTOR GravityManager::CalcDirGravity(void) const
 		auto hitNormal = player_->GetHitNormal();
 
 		// d—Í•ûŒü‚ğ‹‚ß‚é
-		ret = VScale(hitNormal,-1.0f);
-		break;
+		ret = VScale(hitNormal, -1.0f);
 	}
-
+	break;
+	}
 	return ret;
-
-	}
 }
