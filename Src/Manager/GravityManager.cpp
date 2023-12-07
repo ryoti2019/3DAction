@@ -12,6 +12,7 @@ GravityManager* GravityManager::instance_ = nullptr;
 GravityManager::GravityManager(void)
 {
 	player_ = nullptr;
+	tank_ = nullptr;
 	preDirGravity_ = AsoUtility::DIR_D;
 	dirGravity_ = AsoUtility::DIR_D;
 	dirUpGravity_ = AsoUtility::DIR_U;
@@ -125,6 +126,11 @@ void GravityManager::SetPlayer(std::shared_ptr<Player> player)
 	player_ = player;
 }
 
+void GravityManager::SetTank(std::shared_ptr<Tank> tank)
+{
+	tank_ = tank;
+}
+
 const Transform& GravityManager::GetTransform(void) const
 {
 	return transform_;
@@ -230,11 +236,9 @@ VECTOR GravityManager::CalcDirGravity(void) const
 		auto hitNormal = player_->GetHitNormal();
 
 		// d—Í•ûŒü‚ğ‹‚ß‚é
-		ret = VScale(hitNormal,-1.0f);
+		ret = VScale(hitNormal, -1.0f);
 		break;
 	}
-
-	return ret;
-
 	}
+	return ret;
 }

@@ -425,7 +425,7 @@ void Stage::MakeSpecialPlanet(void)
 		name, Planet::TYPE::ROAD, planetTrans);
 	planet->Init();
 	planet->SetGravityRadius(700.0f);
-	planet->SetDeadLength(1000.0f);
+	planet->SetDeadLength(3000.0f);
 	planets_.emplace(name, std::move(planet));
 	//------------------------------------------------------------------------------
 

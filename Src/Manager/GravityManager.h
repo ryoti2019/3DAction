@@ -5,6 +5,7 @@
 class SceneManager;
 class Planet;
 class Player;
+class Tank;
 
 class GravityManager
 {
@@ -50,6 +51,9 @@ public:
 	// 操作プレイヤーをセット
 	void SetPlayer(std::shared_ptr<Player> player);
 
+	// 操作タンクをセット
+	void SetTank(std::shared_ptr<Tank> tank);
+
 	const Transform& GetTransform(void) const;
 	
 	// 重力方向を取得
@@ -78,6 +82,9 @@ protected:
 
 	// プレイヤー
 	std::shared_ptr<Player> player_;
+
+	// タンク
+	std::shared_ptr<Tank> tank_;
 
 	// 現在プレイしている惑星
 	std::weak_ptr<Planet> activePlanet_;

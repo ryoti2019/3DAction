@@ -4,6 +4,7 @@
 class Stage;
 class SkyDome;
 class Player;
+class Tank;
 
 class GameScene : public SceneBase
 {
@@ -30,5 +31,8 @@ private:
 
 	// プレイヤー
 	std::shared_ptr<Player> player_;
+
+	// タンク
+	std::shared_ptr<Tank> tank_;
 
 };

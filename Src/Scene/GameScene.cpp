@@ -9,6 +9,7 @@
 #include "../Object/SkyDome.h"
 #include "../Object/Stage.h"
 #include "../Object/Player.h"
+#include "../Object/Tank.h"
 #include "../Object/Planet.h"
 #include "GameScene.h"
 
@@ -31,6 +32,11 @@ void GameScene::Init(void)
 	GravityManager::GetInstance().SetPlayer(player_);
 	player_->Init();
 
+	// タンク
+	tank_ = std::make_shared<Tank>();
+	GravityManager::GetInstance().SetTank(tank_);
+	tank_->Init();
+
 	// ステージ
 	stage_ = std::make_unique<Stage>(*player_);
 	stage_->Init();
@@ -42,8 +48,8 @@ void GameScene::Init(void)
 	skyDome_ = std::make_unique<SkyDome>(player_->GetTransform());
 	skyDome_->Init();
 
-	mainCamera->SetFollow(&player_->GetTransform());
-	mainCamera->ChangeMode(Camera::MODE::FOLLOW);
+	//mainCamera->SetFollow(&player_->GetTransform());
+	//mainCamera->ChangeMode(Camera::MODE::FOLLOW);
 
 }
 
@@ -63,6 +69,8 @@ void GameScene::Update(void)
 
 	player_->Update();
 
+	tank_->Update();
+
 }
 
 void GameScene::Draw(void)
@@ -73,6 +81,8 @@ void GameScene::Draw(void)
 	stage_->Draw();
 	
 	player_->Draw();
+
+	tank_->Draw();
 
 	// ヘルプ
 	DrawFormatString(840, 20, 0x000000, "移動　　：WASD");
