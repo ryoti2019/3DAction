@@ -6,6 +6,7 @@ class ResourceManager;
 class WarpStar;
 class Planet;
 class Player;
+class Tank;
 
 class Stage
 {
@@ -33,7 +34,7 @@ public:
 	};
 
 	// コンストラクタ
-	Stage(Player& player);
+	Stage(Player& player, Tank& tank);
 
 	// デストラクタ
 	~Stage(void);
@@ -54,6 +55,8 @@ private:
 	ResourceManager& resMng_;
 
 	Player& player_;
+
+	Tank& tank_;
 
 	// ステージアクティブになっている惑星の情報
 	NAME activeName_;

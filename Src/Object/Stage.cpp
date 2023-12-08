@@ -7,13 +7,14 @@
 #include "../Manager/GravityManager.h"
 #include "WarpStar.h"
 #include "Player.h"
+#include "Tank.h"
 #include "Planet.h"
 #include "Common/Collider.h"
 #include "Common/Transform.h"
 #include "Stage.h"
 
-Stage::Stage(Player& player) 
-	: resMng_(ResourceManager::GetInstance()), player_(player)
+Stage::Stage(Player& player, Tank& tank)
+	: resMng_(ResourceManager::GetInstance()), player_(player), tank_(tank)
 {
 	activeName_ = NAME::MAIN_PLANET;
 	step_ = 0.0f;
@@ -120,6 +121,10 @@ void Stage::ChangeStage(NAME type)
 	// ステージの当たり判定をプレイヤーに設定
 	player_.ClearCollider();
 	player_.AddCollider(activePlanet_.lock()->GetTransform().collider);
+
+	// ステージの当たり判定をタンクに設定
+	tank_.ClearCollider();
+	tank_.AddCollider(activePlanet_.lock()->GetTransform().collider);
 
 	// 重力制御に惑星を渡す
 	GravityManager::GetInstance().ChangeActivePlanet(activePlanet_);

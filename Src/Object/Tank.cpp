@@ -4,6 +4,7 @@
 #include "../Manager/ResourceManager.h"
 #include "../Manager/GravityManager.h"
 #include "../Manager/Camera.h"
+#include "Common/Collider.h"
 #include "Tank.h"
 
 Tank::Tank(void)
@@ -94,26 +95,26 @@ void Tank::Init(void)
 void Tank::Update(void)
 {
 
-	// 移動
-	ProcessMove();
-
 	// 移動方向に応じた回転
 	Rotate();
+
+
 
 	// 弾の発射
 	ProcessShot();
 
-
-
 	// 重力方向に沿って回転させる
 	transformBody_.quaRot = grvMng_.GetTransform().quaRot;
-	transformBody_.quaRot = transformBody_.quaRot.Mult(playerRotY_);
+	transformBody_.quaRot = transformBody_.quaRot.Mult(goalQuaRot_);
 	transformRWheel_.quaRot = grvMng_.GetTransform().quaRot;
-	transformRWheel_.quaRot = transformRWheel_.quaRot.Mult(playerRotY_);
+	transformRWheel_.quaRot = transformRWheel_.quaRot.Mult(transformBody_.quaRot);
 	transformLWheel_.quaRot = grvMng_.GetTransform().quaRot;
-	transformLWheel_.quaRot = transformLWheel_.quaRot.Mult(playerRotY_);
+	transformLWheel_.quaRot = transformLWheel_.quaRot.Mult(transformBody_.quaRot);
 	transformBarrel_.quaRot = grvMng_.GetTransform().quaRot;
-	transformBarrel_.quaRot = transformBarrel_.quaRot.Mult(playerRotY_);
+	transformBarrel_.quaRot = transformBarrel_.quaRot.Mult(transformBody_.quaRot);
+
+	// 移動
+	ProcessMove();
 
 	transformBody_.Update();
 	transformRWheel_.Update();
@@ -128,6 +129,16 @@ void Tank::Draw(void)
 	MV1DrawModel(transformRWheel_.modelId);
 	MV1DrawModel(transformLWheel_.modelId);
 	MV1DrawModel(transformBarrel_.modelId);
+}
+
+void Tank::AddCollider(std::weak_ptr<Collider> collider)
+{
+	colliders_.emplace_back(collider);
+}
+
+void Tank::ClearCollider(void)
+{
+	colliders_.clear();
 }
 
 void Tank::SetGoalRotate(double rotRad)
@@ -150,6 +161,9 @@ void Tank::SetGoalRotate(double rotRad)
 
 	goalQuaRot_ = axis;
 
+	//auto goal = Quaternion::Euler(0.0f, rotRad, 0.0f);
+	//transformBody_.quaRot = Quaternion::Slerp(transformBody_.quaRot, goal, 0.1);
+
 }
 
 void Tank::Rotate(void)
@@ -160,6 +174,7 @@ void Tank::Rotate(void)
 	// 回転の球面補間
 	playerRotY_ = Quaternion::Slerp(
 		playerRotY_, goalQuaRot_, (TIME_ROT - stepRotTime_) / TIME_ROT);
+
 
 }
 
@@ -173,47 +188,61 @@ void Tank::ProcessMove(void)
 	// 移動量をゼロ
 	VECTOR dir = AsoUtility::VECTOR_ZERO;
 
-	// 回転したい角度
-	double rotRad = 0;
-
 	// スピード
 	float speed = 10.0f;
+
+
+	// 回転をYXZの順番で行う
+
 
 	// カメラ方向に前進したい
 	if (ins.IsNew(KEY_INPUT_W))
 	{
-		rotRad = AsoUtility::Deg2RadD(0.0);
-		dir = cameraRot.GetForward();
+		dir = transformBody_.quaRot.GetForward();
+		Quaternion rotPow = Quaternion::Identity();
+		rotPow = Quaternion::Mult(
+			rotPow,
+			Quaternion::AngleAxis(AsoUtility::Deg2RadF(10), AsoUtility::AXIS_X));
+		transformRWheel_.quaRot = Quaternion::Mult(transformRWheel_.quaRot, rotPow);
 	}
 	if (ins.IsNew(KEY_INPUT_A))
 	{
-		rotRad = AsoUtility::Deg2RadD(-90.0);
-		dir = cameraRot.GetLeft();
+		transformBody_.rot.y += AsoUtility::Deg2RadD(-1.0);
 	}
 	if (ins.IsNew(KEY_INPUT_S))
 	{
-		rotRad = AsoUtility::Deg2RadD(180.0);
-		dir = cameraRot.GetBack();
+		dir = transformBody_.quaRot.GetBack();
 	}
 	if (ins.IsNew(KEY_INPUT_D))
 	{
-		rotRad = AsoUtility::Deg2RadD(90.0);
-		dir = cameraRot.GetRight();
+		transformBody_.rot.y += AsoUtility::Deg2RadD(1.0);
 	}
 
-	if (!AsoUtility::EqualsVZero(dir))
+	if (!AsoUtility::EqualsVZero(transformBody_.rot) || !AsoUtility::EqualsVZero(dir))
 	{
 		auto vec = VScale(dir, speed);
 		transformBody_.pos = VAdd(transformBody_.pos, vec);
-		transformRWheel_.pos = VAdd(transformRWheel_.pos, vec);
-		// 親(戦艦)との相対座標を、親(戦艦)の回転情報に合わせて回転
-		VECTOR localRotPos = Quaternion::PosAxis(transformBody_.pos, { 40.0f,-30.0f,0.0f });
-		transformLWheel_.pos = VAdd(transformLWheel_.pos, vec);
-		transformBarrel_.pos = VAdd(transformBarrel_.pos, vec);
 
-		// 回転処理
-		SetGoalRotate(rotRad);
+		// 親(戦艦)との相対座標を、親(戦艦)の回転情報に合わせて回転
+		VECTOR localRotPos = transformBody_.quaRot.PosAxis({ 40.0f,-30.0f,0.0f });
+		transformRWheel_.pos = VAdd(transformBody_.pos, localRotPos);
+		transformRWheel_.quaRot = transformBody_.quaRot;
+
+		// 親(戦艦)との相対座標を、親(戦艦)の回転情報に合わせて回転
+		localRotPos = transformBody_.quaRot.PosAxis({ -40.0f,-30.0f,0.0f });
+		transformLWheel_.pos = VAdd(transformBody_.pos, localRotPos);
+		transformLWheel_.quaRot = transformBody_.quaRot;
+
+		// 親(戦艦)との相対座標を、親(戦艦)の回転情報に合わせて回転
+		localRotPos = transformBody_.quaRot.PosAxis({ 0.0f,-10.0f,0.0f });
+		transformBarrel_.pos = VAdd(transformBody_.pos, localRotPos);
+		transformBarrel_.quaRot = transformBody_.quaRot;
+
+		SetGoalRotate(transformBody_.rot.y);
+
 	}
+
+	
 
 }
 
