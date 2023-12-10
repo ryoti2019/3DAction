@@ -38,7 +38,7 @@ void GameScene::Init(void)
 	tank_->Init();
 
 	// ステージ
-	stage_ = std::make_unique<Stage>(*player_);
+	stage_ = std::make_unique<Stage>(*player_,*tank_);
 	stage_->Init();
 
 	// ステージの初期設定
