@@ -47,9 +47,22 @@ private:
 
 	float stepRotTime_;
 
+	// “y‘ä‚Ì‰ñ“]“®ì’~Ï—p
+	VECTOR localRotAddBody_;
+
+	// Ô—Ö‚Ì‰ñ“]“®ì’~Ï—p
+	VECTOR localRotAddRWheel_;
+	VECTOR localRotAddLWheel_;
+
+	// –Cg‚Ì‰ñ“]“®ì’~Ï—p
+	VECTOR localRotAddBarrel_;
+
 	// ‰ñ“]
 	void SetGoalRotate(double rotRad);
 	void Rotate(void);
+
+	// e(íŠÍ)‚Æ‚Ì‰ñ“]‚ÆˆÊ’u‚Ì“¯Šú
+	void SyncParent(Transform& transform, VECTOR addAxis, VECTOR localPos);
 
 	// ˆÚ“®‘€ì
 	void ProcessMove(void);
