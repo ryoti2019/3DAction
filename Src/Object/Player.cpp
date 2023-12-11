@@ -594,13 +594,6 @@ void Player::CalcGravityPow(void)
 	// メンバ変数 jumpPow_ に重力計算を行う(加速度)
 	jumpPow_ = VAdd(jumpPow_, gravity);
 
-	// 内積
-	float dot = VDot(dirGravity, jumpPow_);
-	if (dot >= 0.0f)
-	{
-		// 重力方向と反対方向(マイナス)でなければ、ジャンプ力を無くす
-		jumpPow_ = gravity;
-	}
 
 }
 

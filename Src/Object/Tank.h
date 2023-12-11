@@ -30,6 +30,11 @@ private:
 	// 衝突判定に用いられるコライダ
 	std::vector<std::weak_ptr<Collider>> colliders_;
 
+	// 衝突チェック
+	VECTOR gravHitPosDown_;
+
+	VECTOR gravHitPosUp_;
+
 	// ボディの基本情報
 	Transform transformBody_;
 
@@ -57,6 +62,25 @@ private:
 	// 砲身の回転動作蓄積用
 	VECTOR localRotAddBarrel_;
 
+	// 移動後の座標
+	VECTOR movedPos_;
+
+	// 移動量
+	VECTOR movePow_;
+
+	// 足元衝突している地面のポリゴン量の法線
+	VECTOR hitNormal_;
+
+	// 足元衝突判定している地面ポリゴンの位置
+	VECTOR hitPos_;
+
+	// 衝突判定
+	void Collision(void);
+	void CollisionGravity(void);
+
+	// 移動量の計算
+	void CalcGravityPow(void);
+
 	// 回転
 	void SetGoalRotate(double rotRad);
 	void Rotate(void);
@@ -70,5 +94,6 @@ private:
 	// 発射操作
 	void ProcessShot(void);
 
-};
+	void DrawDebug(void);
 
+};
