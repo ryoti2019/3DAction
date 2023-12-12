@@ -48,8 +48,8 @@ void GameScene::Init(void)
 	skyDome_ = std::make_unique<SkyDome>(player_->GetTransform());
 	skyDome_->Init();
 
-	//mainCamera->SetFollow(&player_->GetTransform());
-	//mainCamera->ChangeMode(Camera::MODE::FOLLOW);
+	mainCamera->SetFollow(&player_->GetTransform());
+	mainCamera->ChangeMode(Camera::MODE::FOLLOW);
 
 }
 

@@ -4,6 +4,8 @@
 #include "../Manager/ResourceManager.h"
 #include "../Manager/GravityManager.h"
 #include "../Manager/Camera.h"
+#include "../Object/ShotBase.h"
+#include "Common/Capsule.h"
 #include "Common/Collider.h"
 #include "Tank.h"
 
@@ -96,6 +98,18 @@ void Tank::Init(void)
 	// モデル制御の基本情報更新
 	transformBarrel_.Update();
 
+	movedPos_ = { 0.0f,0.0f,0.0f };
+
+	movePow_ = {0.0f,0.0f,0.0f};
+
+	jumpPow_ = { 0.0f,0.0f,0.0f };
+
+	// カプセルコライダ
+	capsule_ = std::make_unique<Capsule>(transformBody_);
+	capsule_->SetLocalPosTop({ 0.0f, 110.0f, 0.0f });
+	capsule_->SetLocalPosDown({ 0.0f, -50.0f, 0.0f });
+	capsule_->SetRadius(20.0f);
+
 	//// 左車輪
 	//MV1SetRotationXYZ(transformLWheel_.modelId, transformLWheel_.rot);
 	//MV1SetScale(transformLWheel_.modelId, { 0.3f,0.3f,0.3f });
@@ -115,14 +129,21 @@ void Tank::Update(void)
 	// 重力による移動量
 	//CalcGravityPow();
 
-	// 衝突判定
-	Collision();
+
 
 	// 移動
 	ProcessMove();
 
 	// 弾の発射
 	ProcessShot();
+
+	CalcSlope();
+
+	// 重力による移動量
+	CalcGravityPow();
+
+	// 衝突判定
+	Collision();
 
 	//SetGoalRotate(localRotAddBody_.y);
 	//Rotate();
@@ -158,6 +179,11 @@ void Tank::Update(void)
 	transformLWheel_.Update();
 	transformBarrel_.Update();
 
+	for (auto v : shots_)
+	{
+		v->Update();
+	}
+
 }
 
 void Tank::Draw(void)
@@ -168,6 +194,12 @@ void Tank::Draw(void)
 	MV1DrawModel(transformBarrel_.modelId);
 
 	DrawDebug();
+
+	for (auto v : shots_)
+	{
+		v->Draw();
+	}
+
 }
 
 void Tank::AddCollider(std::weak_ptr<Collider> collider)
@@ -183,13 +215,26 @@ void Tank::ClearCollider(void)
 void Tank::Collision(void)
 {
 
+	// 現在座標を起点に移動後座標を決める
+	//movedPos_ = VAdd(transformBody_.pos, movePow_);
+	transformBody_.pos = VAdd(transformBody_.pos, movePow_);
+
+	CollisionCapsule();
+
 	// 衝突(重力)
 	CollisionGravity();
+
+	// 移動
+	//transformBody_.pos = movedPos_;
 
 }
 
 void Tank::CollisionGravity(void)
 {
+
+
+	// ジャンプ量を加算
+	transformBody_.pos = VAdd(transformBody_.pos, jumpPow_);
 
 	// 重力方向
 	VECTOR dirGravity = grvMng_.GetDirGravity();
@@ -202,16 +247,16 @@ void Tank::CollisionGravity(void)
 
 	// モデルとの衝突判定を行うための線分(始点、終点)を作成
 	float checkPow = 10.0f;
-	gravHitPosUp_ = VAdd(transformBody_.pos, VScale(dirUpGravity, gravityPow));
+	gravHitPosUp_ = VAdd(VAdd(transformBody_.pos, {0.0f,100.0f,0.0f}), VScale(dirUpGravity, gravityPow));
 	gravHitPosUp_ = VAdd(gravHitPosUp_, VScale(dirUpGravity, checkPow * 2.0f));
-	gravHitPosDown_ = VAdd(transformBody_.pos, VScale(dirGravity, checkPow));
+	gravHitPosDown_ = VAdd(VAdd(transformBody_.pos, { 0.0f,-100.0f,0.0f }), VScale(dirGravity, checkPow));
 	for (const auto c : colliders_)
 	{
 		// 地面との衝突
 		auto hit = MV1CollCheck_Line(
 			c.lock()->modelId_, -1, gravHitPosUp_, gravHitPosDown_);
 		//if (hit.HitFlag > 0)
-		if (hit.HitFlag > 0)
+		if (hit.HitFlag > 0 && VDot(dirGravity, jumpPow_) > 0.9f)
 		{
 
 			// 傾斜計算用に衝突判定を保存しておく
@@ -219,13 +264,125 @@ void Tank::CollisionGravity(void)
 			hitPos_ = hit.HitPosition;
 
 			// 衝突地点から、少し上に移動
-			transformBody_.pos = VAdd(hit.HitPosition, VScale(dirUpGravity, 2.0f));
+			transformBody_.pos = VAdd(hit.HitPosition, VScale(dirUpGravity, 70.0f));
+
+			// ジャンプリセット
+			jumpPow_ = AsoUtility::VECTOR_ZERO;
 		}
+	}
+
+}
+
+void Tank::CollisionCapsule(void)
+{
+
+	// カプセルを移動させる
+	Transform trans = Transform(transform_);
+	trans.pos = transformBody_.pos;
+	trans.Update();
+	Capsule cap = Capsule(*capsule_, trans);
+
+	// カプセルとの衝突判定
+	for (const auto c : colliders_)
+	{
+
+		auto hits = MV1CollCheck_Capsule(
+			c.lock()->modelId_, -1,
+			cap.GetPosTop(), cap.GetPosDown(), cap.GetRadius());
+
+		// 衝突した複数のポリゴンと衝突回避するまで、
+		// プレイヤーの位置を移動させる
+		for (int i = 0; i < hits.HitNum; i++)
+		{
+
+			auto hit = hits.Dim[i];
+
+			// 地面と異なり、衝突回避位置が不明なため、何度か移動させる
+			// この時、移動させる方向は、移動前座標に向いた方向であったり、
+			// 衝突したポリゴンの法線方向だったりする
+			for (int tryCnt = 0; tryCnt < 10; tryCnt++)
+			{
+
+				// 再度、モデル全体と衝突検出するには、効率が悪過ぎるので、
+				// 最初の衝突判定で検出した衝突ポリゴン1枚と衝突判定を取る
+				int pHit = HitCheck_Capsule_Triangle(
+					cap.GetPosTop(), cap.GetPosDown(), cap.GetRadius(),
+					hit.Position[0], hit.Position[1], hit.Position[2]);
+
+				if (pHit)
+				{
+
+					// 法線の方向にちょっとだけ移動させる
+					transformBody_.pos = VAdd(transformBody_.pos, VScale(hit.Normal, 1.0f));
+					// カプセルも一緒に移動させる
+					trans.pos = transformBody_.pos;
+					trans.Update();
+					continue;
+
+				}
+				break;
+			}
+		}
+
+		// 検出した地面ポリゴン情報の後始末
+		MV1CollResultPolyDimTerminate(hits);
+
 	}
 }
 
 void Tank::CalcGravityPow(void)
 {
+
+	// 重力方向
+	VECTOR dirGravity = grvMng_.GetDirGravity();
+
+	// 重力の強さ
+	float gravityPow = grvMng_.GetPower();
+
+	// 重力
+	// 重力を作る
+	VECTOR gravity = VScale(dirGravity, gravityPow);
+	// メンバ変数 jumpPow_ に重力計算を行う(加速度)
+	jumpPow_ = VAdd(jumpPow_, gravity);
+
+}
+
+void Tank::CalcSlope(void)
+{
+
+	VECTOR gravityUp = grvMng_.GetDirUpGravity();
+
+	// 重力の反対方向から地面の法線方向に向けた回転量を取得
+	Quaternion up2GNorQua = Quaternion::FromToRotation(gravityUp, hitNormal_);
+
+	// 取得した回転の軸と角度を取得する
+	float angle = 0.0f;
+	float* anglePtr = &angle;
+	VECTOR axis;
+	up2GNorQua.ToAngleAxis(anglePtr, &axis);
+
+	// 90度足して、傾斜ベクトルへの回転を取得する
+	Quaternion slopeQ = Quaternion::AngleAxis(
+		angle + AsoUtility::Deg2RadD(90.0), axis);
+
+	// 地面の傾斜線(黄色)
+	slopeDir_ = slopeQ.PosAxis(gravityUp);
+
+	// 傾斜の角度
+	slopeAngleDeg_ = static_cast<float>(
+		AsoUtility::AngleDeg(gravityUp, slopeDir_));
+
+	//// 傾斜による移動
+	//if (AsoUtility::SqrMagnitude(jumpPow_) == 0.0f)
+	//{
+	//	float CHECK_ANGLE = 120.0f;
+	//	if (slopeAngleDeg_ >= CHECK_ANGLE)
+	//	{
+	//		float diff = abs(slopeAngleDeg_ - CHECK_ANGLE);
+	//		slopePow_ = VScale(slopeDir_, diff / 3.0f);
+	//		movePow_ = VAdd(movePow_, slopePow_);
+	//	}
+	//}
 
 }
 
@@ -390,12 +547,67 @@ void Tank::ProcessMove(void)
 
 }
 
-void Tank::ProcessShot(void)
-{
-}
-
 void Tank::DrawDebug(void)
 {
 	// 衝突
 	DrawLine3D(gravHitPosUp_, gravHitPosDown_, 0x000000);
+
+	// カプセルコライダ
+	capsule_->Draw();
+
+}
+
+void Tank::CreateShot(void)
+{
+
+	// 弾の生成フラグ
+	bool isCreate = false;
+
+	for (auto v : shots_)
+	{
+		if (v->GetState() == ShotBase::STATE::END)
+		{
+			// 以前に生成したインスタンスを使い回し
+			v->Create({ transformBarrel_.pos.x,
+				transformBarrel_.pos.y,
+				transformBarrel_.pos.z, },
+				transformBarrel_.GetForward());
+			isCreate = true;
+			break;
+		}
+	}
+	if (!isCreate)
+	{
+		// 自機の前方方向
+		auto dir = transformBarrel_.GetForward();
+		// 新しいインスタンスを生成
+		ShotBase* newShot = new ShotBase();
+		newShot->Create({ transformBarrel_.pos.x,
+			transformBarrel_.pos.y,
+			transformBarrel_.pos.z },
+			transformBarrel_.GetForward());
+
+		// 弾の管理配列に追加
+		shots_.push_back(newShot);
+	}
+
+}
+
+void Tank::ProcessShot(void)
+{
+
+	auto& ins = InputManager::GetInstance();
+
+	delayShot_ -= SceneManager::GetInstance().GetDeltaTime();
+	if (delayShot_ <= 0.0f)
+	{
+		delayShot_ = 0.0f;
+	}
+
+	if (ins.IsNew(KEY_INPUT_N) && delayShot_ == 0.0f)
+	{
+		CreateShot();
+		delayShot_ = TIME_DELAY_SHOT;
+	}
+
 }

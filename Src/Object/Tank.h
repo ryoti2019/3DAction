@@ -3,6 +3,8 @@
 #include "ActorBase.h"
 
 class Collider;
+class ShotBase;
+class Capsule;
 
 class Tank : public ActorBase
 {
@@ -10,6 +12,9 @@ public:
 
 	// 回転完了までの時間
 	static constexpr float TIME_ROT = 1.0f;
+
+	// 弾の発射間隔
+	static constexpr float TIME_DELAY_SHOT = 1.0f;
 
 	// コンストラクタ
 	Tank(void);
@@ -27,8 +32,13 @@ public:
 
 private:
 
+	// 弾
+	std::vector<ShotBase*> shots_;
+
 	// 衝突判定に用いられるコライダ
 	std::vector<std::weak_ptr<Collider>> colliders_;
+
+	std::unique_ptr<Capsule> capsule_;
 
 	// 衝突チェック
 	VECTOR gravHitPosDown_;
@@ -65,6 +75,9 @@ private:
 	// 移動後の座標
 	VECTOR movedPos_;
 
+	// ジャンプ量
+	VECTOR jumpPow_;
+
 	// 移動量
 	VECTOR movePow_;
 
@@ -74,9 +87,24 @@ private:
 	// 足元衝突判定している地面ポリゴンの位置
 	VECTOR hitPos_;
 
+	float delayShot_;
+
+	// 傾斜の方向
+	VECTOR slopeDir_;
+
+	// 傾斜移動を開始する傾斜角度(デグリー)
+	float slopeAngleDeg_;
+
+	// 傾斜移動時の移動量
+	VECTOR slopePow_;
+
 	// 衝突判定
 	void Collision(void);
 	void CollisionGravity(void);
+
+	void CollisionCapsule(void);
+
+	void CalcSlope(void);
 
 	// 移動量の計算
 	void CalcGravityPow(void);
@@ -95,5 +123,7 @@ private:
 	void ProcessShot(void);
 
 	void DrawDebug(void);
+
+	void CreateShot(void);
 
 };

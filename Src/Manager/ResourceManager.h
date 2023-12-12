@@ -34,6 +34,8 @@ public:
 		TANK_BODY,
 		TANK_BARREL,
 		TANK_WHEEL,
+		SHOT_MODEL,
+		SHOT_EXPLOSION,
 	};
 
 	// 明示的にインステンスを生成する

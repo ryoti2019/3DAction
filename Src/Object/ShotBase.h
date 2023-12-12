@@ -24,18 +24,18 @@ public:
 
 	ShotBase(void);
 
-	virtual ~ShotBase(void);
+	~ShotBase(void);
 
 	/// <summary>
 	/// 弾の生成
 	/// </summary>
 	/// <param name="birthPos">初期座標</param>
 	/// <param name="dir">進行方向</param>
-	virtual void Create(VECTOR birthPos, VECTOR dir);
+	void Create(VECTOR birthPos, VECTOR dir);
 
-	virtual void Update(void);
-	virtual void Draw(void);
-	virtual void Release(void);
+	void Update(void);
+	void Draw(void);
+	void Release(void);
 
 	// 座標の取得
 	VECTOR GetPos(void) const;
@@ -55,6 +55,8 @@ public:
 	// 弾を爆発させる
 	void Blast(void);
 
+	ShotBase::STATE GetState(void);
+
 protected:
 
 	// モデル制御の基本情報
@@ -73,6 +75,7 @@ protected:
 	float timeAlive_;
 	float stepAlive_;
 
+	float gravityPow_;
 
 	// 当たり判定の半径
 	float collisionRadius_;
@@ -82,20 +85,20 @@ protected:
 	int effectBlastPlayId_;
 
 	// パラメータ設定
-	virtual void SetParam(void) = 0;
+	void SetParam(void);
 
 	// 状態別更新処理
-	virtual void UpdateShot(void);
-	virtual void UpdateBlast(void);
+	void UpdateShot(void);
+	void UpdateBlast(void);
 
 	// 状態遷移
 	void ChangeState(STATE state);
 
 	// 生存チェック
-	virtual void CheckAlive(void);
+	void CheckAlive(void);
 
 	// 移動処理
-	virtual void Move(void);
+	void Move(void);
 
 	// 爆発エフェクトを再生
 	void PlayBlastEffect(void);

@@ -115,6 +115,14 @@ void ResourceManager::Init(void)
 	res = std::make_unique<RES>(RES_T::MODEL, PATH_MDL + "Tank/Barrel.mv1");
 	resourcesMap_.emplace(SRC::TANK_BARREL, std::move(res));
 
+	// ’e
+	res = std::make_unique<RES>(RES_T::MODEL, PATH_MDL + "Tank/Shot.mv1");
+	resourcesMap_.emplace(SRC::SHOT_MODEL, std::move(res));
+
+	// ’e‚Ì”š”­
+	res = std::make_unique<RES>(RES_T::EFFEKSEER, PATH_MDL + "Tank/Blast.efkefc");
+	resourcesMap_.emplace(SRC::SHOT_EXPLOSION, std::move(res));
+
 }
 
 void ResourceManager::Release(void)
