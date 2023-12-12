@@ -51,6 +51,7 @@ void GameScene::Init(void)
 	mainCamera->SetFollow(&player_->GetTransform());
 	mainCamera->ChangeMode(Camera::MODE::FOLLOW);
 
+	isTank_ = false;
 }
 
 void GameScene::Update(void)
@@ -70,6 +71,17 @@ void GameScene::Update(void)
 	player_->Update();
 
 	tank_->Update();
+
+	if (ins.IsTrgDown(KEY_INPUT_M) && !isTank_)
+	{
+		mainCamera->SetFollow(&tank_->GetTransform());
+		isTank_ = true;
+	}
+	else if (ins.IsTrgDown(KEY_INPUT_M) && isTank_)
+	{
+		mainCamera->SetFollow(&player_->GetTransform());
+		isTank_ = false;
+	}
 
 }
 

@@ -121,6 +121,7 @@ void Tank::Init(void)
 	//MV1SetPosition(transformBarrel_.modelId, transformBarrel_.pos);
 	//Update();
 	
+	transform_ = transformBody_;
 }
 
 void Tank::Update(void)
@@ -129,7 +130,7 @@ void Tank::Update(void)
 	// 重力による移動量
 	//CalcGravityPow();
 
-
+	transform_ = transformBody_;
 
 	// 移動
 	ProcessMove();
@@ -516,8 +517,8 @@ void Tank::ProcessMove(void)
 		dir = transform_.quaRot.GetForward();
 		auto vec = VScale(dir, speed);
 		transformBody_.pos = VAdd(transformBody_.pos, vec);
-		localRotAddRWheel_.x += AsoUtility::Deg2RadD(1.0);
-		localRotAddLWheel_.x += AsoUtility::Deg2RadD(1.0);
+		localRotAddRWheel_.x += AsoUtility::Deg2RadD(2.0);
+		localRotAddLWheel_.x += AsoUtility::Deg2RadD(2.0);
 
 	}
 
@@ -527,8 +528,8 @@ void Tank::ProcessMove(void)
 		dir = transform_.quaRot.GetBack();
 		auto vec = VScale(dir, speed);
 		transformBody_.pos = VAdd(transformBody_.pos, vec);
-		localRotAddRWheel_.x += AsoUtility::Deg2RadD(-1.0);
-		localRotAddLWheel_.x += AsoUtility::Deg2RadD(-1.0);
+		localRotAddRWheel_.x += AsoUtility::Deg2RadD(-2.0);
+		localRotAddLWheel_.x += AsoUtility::Deg2RadD(-2.0);
 	}
 	
 	auto deg = AsoUtility::Rad2DegF(localRotAddBody_.x);
@@ -562,16 +563,17 @@ void Tank::CreateShot(void)
 
 	// 弾の生成フラグ
 	bool isCreate = false;
-
+	auto dir = transformBarrel_.quaRot.PosAxis(transformBody_.pos);
 	for (auto v : shots_)
 	{
 		if (v->GetState() == ShotBase::STATE::END)
 		{
+			auto dir = transformBarrel_.GetForward();
 			// 以前に生成したインスタンスを使い回し
 			v->Create({ transformBarrel_.pos.x,
 				transformBarrel_.pos.y,
-				transformBarrel_.pos.z, },
-				transformBarrel_.GetForward());
+				transformBarrel_.pos.z,},
+				dir);
 			isCreate = true;
 			break;
 		}
@@ -584,8 +586,8 @@ void Tank::CreateShot(void)
 		ShotBase* newShot = new ShotBase();
 		newShot->Create({ transformBarrel_.pos.x,
 			transformBarrel_.pos.y,
-			transformBarrel_.pos.z },
-			transformBarrel_.GetForward());
+			transformBarrel_.pos.z},
+			dir);
 
 		// 弾の管理配列に追加
 		shots_.push_back(newShot);

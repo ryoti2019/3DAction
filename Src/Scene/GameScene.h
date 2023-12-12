@@ -35,4 +35,6 @@ private:
 	// ƒ^ƒ“ƒN
 	std::shared_ptr<Tank> tank_;
 
+	float isTank_;
+
 };

@@ -45,6 +45,9 @@ void ShotBase::Create(VECTOR birthPos, VECTOR dir)
 	// w’è•ûŒü‚É’e‚ğ”ò‚Î‚·
 	dir_ = dir;
 
+	// d—Í
+	gravityPow_ = 0.0f;
+
 	// ’e‚Ì”­¶ˆÊ’u
 	transform_.pos = birthPos;
 
